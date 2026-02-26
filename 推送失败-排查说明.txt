@@ -1,0 +1,33 @@
+错误：Recv failure: Connection was reset
+说明：本机连 GitHub 时连接被重置，属于网络/环境问题，不是代码或 Git 配置错误。
+
+■ 先做的
+1. 直接再推一次（有时是暂时波动）
+   git push -u origin main
+
+2. 或运行 retry-push.bat（会自动重试 3 次并调大缓冲区）
+
+■ 若仍失败，可逐项检查
+
+3. 网络
+   - 换一个网络（手机热点、其他 WiFi）再试
+   - 若在公司/学校，可能拦截了 GitHub，需用允许访问外网的网络
+
+4. 代理 / VPN
+   - 若你用了代理或 VPN，让 Git 走代理（在 cmd 里执行，把 127.0.0.1:7890 改成你的代理地址和端口）：
+     git config --global http.proxy http://127.0.0.1:7890
+     git config --global https.proxy http://127.0.0.1:7890
+   - 若不用代理，取消代理：
+     git config --global --unset http.proxy
+     git config --global --unset https.proxy
+
+5. 防火墙 / 安全软件
+   - 暂时关掉防火墙或安全软件试一次，或把 git.exe 加入白名单
+
+6. 国内访问 GitHub
+   - 国内连 GitHub 常不稳定，可稍后再试，或用 VPN 后重试
+
+■ 本地提交已成功
+你本地的合并提交已经完成，只是还没推上去。网络恢复后执行一次：
+   git push -u origin main
+即可，无需重新 add/commit。
