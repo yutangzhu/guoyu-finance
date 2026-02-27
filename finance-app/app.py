@@ -26,9 +26,11 @@ COMPANY_FILE = DATA_DIR / "company.json"
 PRODUCTS_FILE = DATA_DIR / "products.json"
 PAYMENTS_FILE = DATA_DIR / "payments.json"  # 客户收款记录
 
-# 迷你云式结构新增：销货单 / 库存 / 往来流水
+# 财务云结构新增：销货单 / 购货单 / 库存 / 往来流水
 SALES_HEADER_FILE = DATA_DIR / "sales_header.json"
 SALES_DETAIL_FILE = DATA_DIR / "sales_detail.json"
+PURCHASE_HEADER_FILE = DATA_DIR / "purchase_header.json"
+PURCHASE_DETAIL_FILE = DATA_DIR / "purchase_detail.json"
 STOCK_MOVES_FILE = DATA_DIR / "stock_moves.json"
 ARAP_MOVES_FILE = DATA_DIR / "arap_moves.json"
 
@@ -617,10 +619,154 @@ if page == "首页":
     else:
         st.info("暂无流水数据。")
 
-# ================= 页面：进货-购货单（占位）=================
+# ================= 页面：进货-购货单 =================
 elif page == "进货-购货单":
     st.markdown('<p class="main-header">购货单</p>', unsafe_allow_html=True)
-    st.info("购货入库功能敬请期待。当前可通过【财务】→ 记一笔 / 应收应付 记录采购与应付款。")
+    st.markdown('<p class="sub-header">从供应商进货入库，形成库存与应付款</p>', unsafe_allow_html=True)
+
+    # 读取已有购货单
+    purchase_headers = load_json(PURCHASE_HEADER_FILE, [])
+    purchase_details = load_json(PURCHASE_DETAIL_FILE, [])
+
+    company = load_company()
+
+    now = datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
+    same_day = [h for h in purchase_headers if (h.get("biz_date") or "").startswith(today_str)]
+    next_seq = len(same_day) + 1
+    default_number = f"CG-{now.strftime('%Y%m%d')}-{next_seq:03d}"
+
+    st.subheader("填写购货单")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        biz_date = st.text_input("业务日期", value=today_str, key="cg_date")
+        supplier = st.text_input("供应商", value="", key="cg_supplier")
+        warehouse_id = st.text_input("仓库", value="默认仓库", key="cg_wh")
+    with col2:
+        handler = st.text_input("经手人", value=company.get("default_handler", ""), key="cg_handler")
+        summary = st.text_input("摘要", value="", key="cg_summary")
+        discount = st.number_input("整单优惠", value=0.0, min_value=0.0, step=0.01, format="%.2f", key="cg_discount")
+    with col3:
+        number = st.text_input("编号", value=default_number, key="cg_no")
+        contact_phone = st.text_input("联系电话", value="", key="cg_phone")
+        account_id = st.text_input("本次付款账户", value="", key="cg_account")
+
+    # 明细表
+    if "cg_lines" not in st.session_state:
+        st.session_state.cg_lines = pd.DataFrame({
+            "商品名称": ["", "", ""],
+            "数量": [0.0, 0.0, 0.0],
+            "单价": [0.0, 0.0, 0.0],
+            "备注": ["", "", ""],
+        })
+
+    edited = st.data_editor(
+        st.session_state.cg_lines,
+        column_config={
+            "商品名称": st.column_config.TextColumn("商品名称", width="large"),
+            "数量": st.column_config.NumberColumn("数量", min_value=0.0, step=0.1, format="%.2f"),
+            "单价": st.column_config.NumberColumn("单价", min_value=0.0, step=0.01, format="%.2f"),
+            "备注": st.column_config.TextColumn("备注", width="medium"),
+        },
+        num_rows="dynamic",
+        key="cg_lines_editor",
+    )
+    st.session_state.cg_lines = edited
+
+    edited["金额"] = (edited["数量"].fillna(0) * edited["单价"].fillna(0)).round(2)
+    subtotal = float(edited["金额"].sum())
+    total = subtotal - float(discount)
+    st.caption(f"明细小计: ¥{subtotal:.2f} － 优惠: ¥{float(discount):.2f} ＝ 应付: ¥{total:.2f}")
+
+    col_save, _, _ = st.columns([1, 1, 2])
+    with col_save:
+        if st.button("保存购货单"):
+            lines_raw = edited.drop(columns=["金额"], errors="ignore")
+            lines_raw = lines_raw[lines_raw["商品名称"].astype(str).str.strip() != ""]
+            if lines_raw.empty:
+                st.error("请至少填写一行商品。")
+            else:
+                # 写入 purchase_header / purchase_detail
+                header_id = f"CG{biz_date.replace('-', '')}-{len(purchase_headers)+1:03d}"
+                supplier_id = supplier or "S_TMP"
+                header = {
+                    "id": header_id,
+                    "no": number,
+                    "biz_date": biz_date,
+                    "supplier_id": supplier_id,
+                    "warehouse_id": warehouse_id or "W01",
+                    "settle_account_id": account_id or None,
+                    "amount_total": subtotal,
+                    "discount_total": float(discount),
+                    "amount_payable": total,
+                    "amount_paid": 0.0,
+                    "amount_ap": total,
+                    "status": "checked",
+                    "handler": handler,
+                    "summary": summary,
+                    "contact_phone": contact_phone,
+                    "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                }
+                purchase_headers.append(header)
+
+                stock_moves = load_json(STOCK_MOVES_FILE, [])
+                arap_moves = load_json(ARAP_MOVES_FILE, [])
+
+                line_idx = 1
+                for _, row in lines_raw.iterrows():
+                    detail_id = f"{header_id}-{line_idx:02d}"
+                    line_idx += 1
+                    qty = float(row.get("数量", 0) or 0)
+                    price = float(row.get("单价", 0) or 0)
+                    amount = qty * price
+                    goods_id = str(row.get("商品名称", ""))
+
+                    purchase_details.append({
+                        "id": detail_id,
+                        "header_id": header_id,
+                        "goods_id": goods_id,
+                        "warehouse_id": warehouse_id or "W01",
+                        "qty": qty,
+                        "unit": "",
+                        "price": price,
+                        "discount_rate": 0.0,
+                        "tax_rate": 0.0,
+                        "amount": amount,
+                        "note": str(row.get("备注", "")),
+                    })
+
+                    stock_moves.append({
+                        "id": detail_id,
+                        "biz_date": biz_date,
+                        "bill_type": "purchase",
+                        "bill_no": number,
+                        "goods_id": goods_id,
+                        "warehouse_id": warehouse_id or "W01",
+                        "qty_in": qty,
+                        "qty_out": 0.0,
+                        "cost_price": price,
+                        "amount_cost": amount,
+                        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    })
+
+                arap_moves.append({
+                    "id": header_id,
+                    "biz_date": biz_date,
+                    "obj_type": "supplier",
+                    "obj_id": supplier_id,
+                    "bill_type": "purchase",
+                    "bill_no": number,
+                    "debit": 0.0,
+                    "credit": total,
+                    "note": summary,
+                })
+
+                save_json(PURCHASE_HEADER_FILE, purchase_headers)
+                save_json(PURCHASE_DETAIL_FILE, purchase_details)
+                save_json(STOCK_MOVES_FILE, stock_moves)
+                save_json(ARAP_MOVES_FILE, arap_moves)
+
+                st.success("已保存购货单，并写入入库/应付结构")
 
 # ================= 页面：库存-库存查询（占位）=================
 elif page == "库存-库存查询":
