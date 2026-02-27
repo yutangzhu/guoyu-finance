@@ -768,10 +768,56 @@ elif page == "进货-购货单":
 
                 st.success("已保存购货单，并写入入库/应付结构")
 
-# ================= 页面：库存-库存查询（占位）=================
+# ================= 页面：库存-库存查询 =================
 elif page == "库存-库存查询":
     st.markdown('<p class="main-header">库存查询</p>', unsafe_allow_html=True)
-    st.info("库存功能敬请期待。可先使用【报表】→ 流水记录 查看进出明细。")
+    st.markdown('<p class="sub-header">按照商品和仓库查看当前库存数量与成本</p>', unsafe_allow_html=True)
+
+    stock_moves = load_json(STOCK_MOVES_FILE, [])
+    if not stock_moves:
+        st.info("暂无库存数据。请先在【进货 → 购货单】或【销售 → 销货单】中产生单据。")
+    else:
+        df = pd.DataFrame(stock_moves)
+
+        # 只保留必要字段，计算结存数量和金额
+        df["qty_in"] = df.get("qty_in", 0).fillna(0).astype(float)
+        df["qty_out"] = df.get("qty_out", 0).fillna(0).astype(float)
+        df["amount_cost"] = df.get("amount_cost", 0).fillna(0).astype(float)
+        df["qty"] = df["qty_in"] - df["qty_out"]
+
+        if df.empty:
+            st.info("暂无库存数据。")
+        else:
+            grouped = df.groupby(["goods_id", "warehouse_id"], as_index=False).agg(
+                qty=("qty", "sum"),
+                amount_cost=("amount_cost", "sum"),
+            )
+            grouped["cost_price"] = grouped.apply(
+                lambda r: (r["amount_cost"] / r["qty"]) if r["qty"] else 0.0, axis=1
+            )
+
+            col1, col2 = st.columns(2)
+            with col1:
+                kw = st.text_input("商品关键字", placeholder="按商品名称包含过滤，如：管")
+            with col2:
+                wh = st.text_input("仓库关键字", placeholder="按仓库名称包含过滤")
+
+            if kw.strip():
+                grouped = grouped[grouped["goods_id"].astype(str).str.contains(kw.strip())]
+            if wh.strip():
+                grouped = grouped[grouped["warehouse_id"].astype(str).str.contains(wh.strip())]
+
+            grouped = grouped.sort_values(["goods_id", "warehouse_id"])
+            grouped_display = grouped.rename(
+                columns={
+                    "goods_id": "商品",
+                    "warehouse_id": "仓库",
+                    "qty": "数量",
+                    "cost_price": "成本单价",
+                    "amount_cost": "成本金额",
+                }
+            )
+            st.dataframe(grouped_display, use_container_width=True, hide_index=True)
 
 # ================= 页面：公司信息 =================
 elif page == "公司信息":
