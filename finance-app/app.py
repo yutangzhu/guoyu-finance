@@ -363,35 +363,135 @@ th {{ background: #f0f0f0; }}
     return html
 
 
-# ================= 页面样式 =================
-st.set_page_config(page_title="国宇制冷理财管家", page_icon="🏠", layout="wide", initial_sidebar_state="expanded")
+# ================= 页面样式（迷你云风格）=================
+st.set_page_config(page_title="迷你云进销存", page_icon="☁", layout="wide", initial_sidebar_state="expanded")
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
     .stApp { font-family: 'Noto Sans SC', sans-serif; }
-    .main-header { font-size: 2rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.5rem; }
-    .sub-header { color: #6b7280; font-size: 1rem; margin-bottom: 1.5rem; }
-    .stat-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1rem 1.2rem; 
-                border-radius: 10px; color: white; margin: 0.3rem 0; }
-    .stat-box.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-    .stat-box.red { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
-    .stat-box.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-    div[data-testid="stSidebar"] { background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); }
+    .miniyun-login-left { background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: #fff; padding: 2rem; border-radius: 12px; }
+    .miniyun-login-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .miniyun-login-desc { font-size: 0.9rem; opacity: 0.95; margin: 0.5rem 0; }
+    .miniyun-stat { display: inline-block; text-align: center; padding: 0.8rem 1rem; margin: 0.3rem; background: rgba(255,255,255,0.15); border-radius: 8px; }
+    .miniyun-stat-num { font-size: 1.5rem; font-weight: 700; }
+    .miniyun-topbar { background: #1e3a5f; color: #fff; padding: 0.4rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
+    .miniyun-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .miniyun-card-title { font-size: 0.85rem; color: #6b7280; margin-bottom: 0.2rem; }
+    .miniyun-card-value { font-size: 1.5rem; font-weight: 700; color: #1f2937; }
+    .miniyun-shortcut { padding: 1rem; border: 1px solid #e5e7eb; border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s; }
+    .miniyun-shortcut:hover { border-color: #3b82f6; background: #eff6ff; }
+    div[data-testid="stSidebar"] { background: linear-gradient(180deg, #1e3a5f 0%, #16304d 100%); }
+    div[data-testid="stSidebar"] .stMarkdown { color: #e5e7eb !important; }
+    .main-header { font-size: 1.5rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.5rem; }
+    .sub-header { color: #6b7280; font-size: 0.95rem; margin-bottom: 1rem; }
 </style>
 """, unsafe_allow_html=True)
 
 
-# ================= 侧边栏 =================
-st.sidebar.markdown("## 🏠 国宇制冷理财管家")
+# ================= 登录校验（迷你云风格登录页）=================
+def _get_login_credentials():
+    try:
+        u = st.secrets.get("LOGIN_USERNAME", "").strip()
+        p = st.secrets.get("LOGIN_PASSWORD", "").strip()
+        return (u, p) if (u and p) else (None, None)
+    except Exception:
+        return (None, None)
+
+
+if not st.session_state.get("logged_in", False):
+    col_left, col_right = st.columns([1, 1])
+    with col_left:
+        st.markdown('<div class="miniyun-login-left">', unsafe_allow_html=True)
+        st.markdown("### 迷你云 · 进销存")
+        st.markdown('<p class="miniyun-login-desc">完美适配中小微企业及迷你型企业的进销存软件</p>', unsafe_allow_html=True)
+        st.markdown("多用户 · 多仓库 · 多门店  \n多规格 · 多批次 · 多单位  \n电脑端 · 平板端 · 手机端，多端数据同步", unsafe_allow_html=True)
+        st.markdown("---")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: st.metric("10年", "行业经验")
+        with c2: st.metric("10年", "稳定运营")
+        with c3: st.metric("10万+", "在线用户")
+        with c4: st.metric("10秒", "极速开单")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col_right:
+        st.markdown("## 用户登陆")
+        username, password = _get_login_credentials()
+        if not username or not password:
+            st.warning("请在 Streamlit Cloud 的 Advanced settings → Secrets 中配置 **LOGIN_USERNAME** 和 **LOGIN_PASSWORD**。")
+        with st.form("login_form"):
+            u = st.text_input("账号", placeholder="请输入账号", key="login_user")
+            p = st.text_input("密码", type="password", placeholder="请输入密码", key="login_pwd")
+            st.checkbox("记住账号", key="remember")
+            submitted = st.form_submit_button("登 陆")
+        if submitted:
+            if not username or not password:
+                st.error("当前未配置账号密码，无法登录。")
+            elif u == username and p == password:
+                st.session_state["logged_in"] = True
+                st.rerun()
+            else:
+                st.error("账号或密码错误。")
+    st.caption("© 迷你云进销存 版权所有")
+    st.stop()
+
+
+# ================= 顶栏（迷你云风格）=================
+company = load_company()
+top1, top2, top3, top4, top5 = st.columns([2, 1, 1, 1, 1])
+with top1:
+    st.markdown(f"**{company.get('name', '迷你云')}**")
+with top2:
+    st.caption("用户：当前账户")
+with top3:
+    if st.button("🔄 刷新", key="tb_refresh"):
+        st.rerun()
+with top4:
+    st.caption("授权：迷你版")
+with top5:
+    if st.button("🚪 退出", key="tb_exit"):
+        st.session_state["logged_in"] = False
+        st.rerun()
+st.markdown("---")
+
+# ================= 侧边栏（迷你云：进货/销售/库存/财务/报表/设置）=================
+st.sidebar.markdown("### ☁ 迷你云")
 st.sidebar.markdown("---")
-page = st.sidebar.radio(
-    "导航",
-    ["📊 总览", "➕ 记一笔", "🔄 转账", "📋 流水记录", "📥 应收应付", "📈 预算管理", "🏦 账户管理", "📄 销售出库单", "👤 客户账单", "⚙️ 分类设置"],
-    label_visibility="collapsed"
+main_nav = st.sidebar.radio(
+    "主导航",
+    ["首页", "进货", "销售", "库存", "财务", "报表", "设置"],
+    label_visibility="collapsed",
+    key="main_nav"
 )
 st.sidebar.markdown("---")
-st.sidebar.caption("管家婆风格 · 数据本地保存")
 
+# 子菜单 / 页面映射
+page = None
+if main_nav == "首页":
+    page = "首页"
+elif main_nav == "进货":
+    page = "进货-购货单"
+elif main_nav == "销售":
+    sub = st.sidebar.radio("销售", ["销货单", "客户账单"], label_visibility="collapsed", key="sales_sub")
+    page = "销售-销货单" if sub == "销货单" else "销售-客户账单"
+elif main_nav == "库存":
+    page = "库存-库存查询"
+elif main_nav == "财务":
+    sub = st.sidebar.radio("财务", ["记一笔", "转账", "应收应付", "账户管理", "预算管理"], label_visibility="collapsed", key="finance_sub")
+    page = {"记一笔": "➕ 记一笔", "转账": "🔄 转账", "应收应付": "📥 应收应付", "账户管理": "🏦 账户管理", "预算管理": "📈 预算管理"}[sub]
+elif main_nav == "报表":
+    sub = st.sidebar.radio("报表", ["总览", "流水记录"], label_visibility="collapsed", key="report_sub")
+    page = "📊 总览" if sub == "总览" else "📋 流水记录"
+elif main_nav == "设置":
+    sub = st.sidebar.radio("设置", ["分类设置", "公司信息", "商品管理"], label_visibility="collapsed", key="setting_sub")
+    page = "⚙️ 分类设置" if sub == "分类设置" else ("公司信息" if sub == "公司信息" else "商品管理")
+
+# 将“销售”子菜单映射到原有页面键
+if page == "销售-销货单":
+    page = "📄 销售出库单"
+elif page == "销售-客户账单":
+    page = "👤 客户账单"
+
+st.sidebar.markdown("---")
+st.sidebar.caption("© 迷你云 版权所有")
 
 # ================= 数据加载 =================
 transactions = load_transactions()
@@ -399,6 +499,19 @@ budgets = load_json(BUDGETS_FILE, {})
 categories = load_categories()
 accounts = load_accounts()
 debt_records = load_debt()
+receivables, payables = calc_debt_summary(debt_records)
+rec_total = sum(receivables.values())
+pay_total = sum(payables.values())
+df_tx = pd.DataFrame(transactions)
+month_sales = 0
+month_purchase = 0
+if not df_tx.empty and "date" in df_tx.columns:
+    df_tx["date"] = pd.to_datetime(df_tx["date"])
+    now = datetime.now()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    df_month = df_tx[df_tx["date"] >= month_start]
+    month_sales = df_month[df_month["type"] == "收入"]["amount"].sum() if "type" in df_month.columns else 0
+    month_purchase = df_month[df_month["type"] == "支出"]["amount"].sum() if "type" in df_month.columns else 0
 
 
 def add_transaction(transactions, t_type, amount, category, note, date, account_id=None,
@@ -437,8 +550,114 @@ def add_debt_record(records, d_type, contact, amount, account_id, date, note):
     save_debt(records)
 
 
+# ================= 页面：首页（迷你云仪表盘）=================
+if page == "首页":
+    st.markdown('<p class="main-header">工作台</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">快速入门与数据概览</p>', unsafe_allow_html=True)
+    with st.expander("快速入门步骤", expanded=False):
+        st.write("第一步：设置 → 商品管理 添加商品")
+        st.write("第二步：进货 → 购货单 购货入库")
+        st.write("第三步：销售 → 销货单 销售出库")
+        st.write("第四步：库存 → 库存查询 查询实时库存")
+        st.write("第五步：报表 → 销售利润表 查询销售与利润")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("本月采购", f"¥ {month_purchase:,.2f}", "总金额")
+    with c2:
+        st.metric("供应商", f"¥ {pay_total:,.2f}", "总欠款")
+    with c3:
+        st.metric("本月销售", f"¥ {month_sales:,.2f}", "总金额")
+    with c4:
+        st.metric("客户", f"¥ {rec_total:,.2f}", "总欠款")
+    st.markdown("---")
+    st.subheader("快捷入口")
+    s1, s2, s3 = st.columns(3)
+    with s1:
+        if st.button("📥 购货入库", use_container_width=True):
+            st.session_state["main_nav"] = "进货"
+            st.rerun()
+        if st.button("📤 销售出库", use_container_width=True):
+            st.session_state["main_nav"] = "销售"
+            st.rerun()
+    with s2:
+        if st.button("📋 库存盘点", use_container_width=True):
+            st.session_state["main_nav"] = "库存"
+            st.rerun()
+        if st.button("📦 商品", use_container_width=True):
+            st.session_state["main_nav"] = "设置"
+            st.rerun()
+    with s3:
+        if st.button("👤 客户", use_container_width=True):
+            st.session_state["main_nav"] = "销售"
+            st.rerun()
+        if st.button("🏭 供应商", use_container_width=True):
+            st.session_state["main_nav"] = "进货"
+            st.rerun()
+    st.markdown("---")
+    st.subheader("近15天数据")
+    if not df_tx.empty and "date" in df_tx.columns:
+        df_tx["date"] = pd.to_datetime(df_tx["date"])
+        df_15 = df_tx[df_tx["date"] >= (datetime.now() - pd.Timedelta(days=15))]
+        if not df_15.empty:
+            df_15["amount"] = df_15.apply(lambda r: r["amount"] if r.get("type") == "收入" else -r["amount"], axis=1)
+            daily = df_15.groupby(df_15["date"].dt.date)["amount"].sum().reset_index()
+            daily.columns = ["日期", "金额"]
+            import plotly.express as px
+            fig = px.bar(daily, x="日期", y="金额", color="金额", color_continuous_scale=["#eb3349", "#38ef7d"])
+            fig.update_layout(height=280, showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("暂无近15天流水。")
+    else:
+        st.info("暂无流水数据。")
+
+# ================= 页面：进货-购货单（占位）=================
+elif page == "进货-购货单":
+    st.markdown('<p class="main-header">购货单</p>', unsafe_allow_html=True)
+    st.info("购货入库功能敬请期待。当前可通过【财务】→ 记一笔 / 应收应付 记录采购与应付款。")
+
+# ================= 页面：库存-库存查询（占位）=================
+elif page == "库存-库存查询":
+    st.markdown('<p class="main-header">库存查询</p>', unsafe_allow_html=True)
+    st.info("库存功能敬请期待。可先使用【报表】→ 流水记录 查看进出明细。")
+
+# ================= 页面：公司信息 =================
+elif page == "公司信息":
+    st.markdown('<p class="main-header">公司信息</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">用于单据说头与表尾</p>', unsafe_allow_html=True)
+    company = load_company()
+    with st.form("company_form"):
+        c_name = st.text_input("公司名称", value=company.get("name", ""))
+        c_title = st.text_input("单据说头", value=company.get("title", "销售出库单"))
+        c_scope = st.text_input("主营", value=company.get("business_scope", ""))
+        c_phones = st.text_input("联系电话", value=company.get("contact_phones", ""))
+        c_handler = st.text_input("默认经手人", value=company.get("default_handler", ""))
+        c_preparer = st.text_input("默认制单人", value=company.get("default_preparer", ""))
+        if st.form_submit_button("保存"):
+            save_company({"name": c_name, "title": c_title, "business_scope": c_scope, "contact_phones": c_phones, "default_handler": c_handler, "default_preparer": c_preparer})
+            st.success("已保存")
+
+# ================= 页面：商品管理 =================
+elif page == "商品管理":
+    st.markdown('<p class="main-header">商品管理</p>', unsafe_allow_html=True)
+    products = load_products()
+    with st.expander("从 Excel 导入商品", expanded=True):
+        upload = st.file_uploader("选择商品列表 Excel", type=["xls", "xlsx"], key="pm_upload")
+        merge_mode = st.checkbox("同名时更新单价", value=True, key="pm_merge")
+        if st.button("执行导入", key="pm_do"):
+            if upload:
+                import io
+                imp, upd, err = import_products_from_excel(io.BytesIO(upload.getvalue()), products, merge=merge_mode)
+                st.success(f"导入 {imp} 条，更新 {upd} 条。") if not err else st.error(err)
+            else:
+                st.warning("请先选择文件")
+    if products:
+        st.dataframe(pd.DataFrame(products), use_container_width=True, hide_index=True)
+    else:
+        st.info("暂无商品，请从 Excel 导入或到【销售】→ 销货单 中维护。")
+
 # ================= 页面：总览 =================
-if page == "📊 总览":
+elif page == "📊 总览":
     st.markdown('<p class="main-header">📊 财务总览</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">资产、收支、应收应付一览</p>', unsafe_allow_html=True)
 

@@ -4,3 +4,4 @@ node_modules/
 *.log
 .DS_Store
 finance-app/data/
+finance-app/.streamlit/secrets.toml
