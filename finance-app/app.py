@@ -112,7 +112,7 @@ def save_delivery_notes(data):
 
 def load_company():
     return load_json(COMPANY_FILE, {
-        "name": "国宇制冷商贸",
+        "name": "国宇制冷",
         "title": "销售出库单",
         "business_scope": "JDG铁管及辅件,PVC红蓝白线管,线管及辅件,旋流消音管件,及农田灌溉及辅件",
         "contact_phones": "15333773152 61155122",
