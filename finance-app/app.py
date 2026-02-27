@@ -26,6 +26,12 @@ COMPANY_FILE = DATA_DIR / "company.json"
 PRODUCTS_FILE = DATA_DIR / "products.json"
 PAYMENTS_FILE = DATA_DIR / "payments.json"  # 客户收款记录
 
+# 迷你云式结构新增：销货单 / 库存 / 往来流水
+SALES_HEADER_FILE = DATA_DIR / "sales_header.json"
+SALES_DETAIL_FILE = DATA_DIR / "sales_detail.json"
+STOCK_MOVES_FILE = DATA_DIR / "stock_moves.json"
+ARAP_MOVES_FILE = DATA_DIR / "arap_moves.json"
+
 DEFAULT_INCOME_CATS = ["工资", "奖金", "投资收益", "兼职", "其他收入"]
 DEFAULT_EXPENSE_CATS = ["餐饮", "交通", "住房", "购物", "娱乐", "医疗", "教育", "通讯", "其他支出"]
 DEFAULT_ACCOUNTS = [
@@ -1103,6 +1109,7 @@ elif page == "📄 销售出库单":
     col_save, col_print, _ = st.columns([1, 1, 2])
     with col_save:
         if st.button("保存出库单"):
+            # 1) 旧版结构：仍然写入 delivery_notes.json，保持兼容
             lines_raw = edited.drop(columns=["金额"], errors="ignore")
             lines_raw = lines_raw[lines_raw["商品名称"].astype(str).str.strip() != ""]
             lines_list = []
@@ -1130,7 +1137,93 @@ elif page == "📄 销售出库单":
             }
             delivery_notes.append(note)
             save_delivery_notes(delivery_notes)
-            st.success("已保存出库单")
+
+            # 2) 新版结构：写入 sales_header / sales_detail / stock_moves / arap_moves
+            sales_headers = load_json(SALES_HEADER_FILE, [])
+            sales_details = load_json(SALES_DETAIL_FILE, [])
+            stock_moves = load_json(STOCK_MOVES_FILE, [])
+            arap_moves = load_json(ARAP_MOVES_FILE, [])
+
+            header_id = f"XS{record_date.replace('-', '')}-{len(sales_headers)+1:03d}"
+            customer_id = buyer or "C_TMP"  # 先用名称占位，后续可改为真实客户档案
+
+            header = {
+                "id": header_id,
+                "no": number,
+                "biz_date": record_date,
+                "customer_id": customer_id,
+                "warehouse_id": "W01",
+                "settle_account_id": None,
+                "amount_total": subtotal,
+                "discount_total": float(discount),
+                "amount_payable": total,
+                "amount_received": 0.0,
+                "amount_ar": total,
+                "status": "checked",
+                "salesman": handler,
+                "handler": handler,
+                "summary": summary,
+                "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+            sales_headers.append(header)
+
+            # 明细与库存流水
+            line_idx = 1
+            for l in lines_list:
+                detail_id = f"{header_id}-{line_idx:02d}"
+                line_idx += 1
+                qty = float(l["quantity"])
+                price = float(l["unit_price"])
+                amount = float(l["amount"])
+                goods_id = l["product_name"]  # 先用名称占位，后续可切换为真正 goods_id
+
+                sales_details.append({
+                    "id": detail_id,
+                    "header_id": header_id,
+                    "goods_id": goods_id,
+                    "warehouse_id": "W01",
+                    "qty": qty,
+                    "unit": "",
+                    "price": price,
+                    "discount_rate": 0.0,
+                    "tax_rate": 0.0,
+                    "amount": amount,
+                    "note": l.get("remark", ""),
+                })
+
+                stock_moves.append({
+                    "id": detail_id,
+                    "biz_date": record_date,
+                    "bill_type": "sale",
+                    "bill_no": number,
+                    "goods_id": goods_id,
+                    "warehouse_id": "W01",
+                    "qty_in": 0.0,
+                    "qty_out": qty,
+                    "cost_price": price,  # 先用售价占位，后续可用真实成本
+                    "amount_cost": qty * price,
+                    "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                })
+
+            # 往来流水：客户应收
+            arap_moves.append({
+                "id": header_id,
+                "biz_date": record_date,
+                "obj_type": "customer",
+                "obj_id": customer_id,
+                "bill_type": "sale",
+                "bill_no": number,
+                "debit": total,
+                "credit": 0.0,
+                "note": summary,
+            })
+
+            save_json(SALES_HEADER_FILE, sales_headers)
+            save_json(SALES_DETAIL_FILE, sales_details)
+            save_json(STOCK_MOVES_FILE, stock_moves)
+            save_json(ARAP_MOVES_FILE, arap_moves)
+
+            st.success("已保存出库单，并写入销货单/库存/应收结构")
 
     with col_print:
         lines_for_html = []
