@@ -112,7 +112,7 @@ def save_delivery_notes(data):
 
 def load_company():
     return load_json(COMPANY_FILE, {
-        "name": "南阳蒲公英商贸",
+        "name": "国宇制冷商贸",
         "title": "销售出库单",
         "business_scope": "JDG铁管及辅件,PVC红蓝白线管,线管及辅件,旋流消音管件,及农田灌溉及辅件",
         "contact_phones": "15333773152 61155122",
@@ -369,8 +369,8 @@ th {{ background: #f0f0f0; }}
     return html
 
 
-# ================= 页面样式（迷你云风格）=================
-st.set_page_config(page_title="迷你云进销存", page_icon="☁", layout="wide", initial_sidebar_state="expanded")
+# ================= 页面样式（财务云风格，仿迷你云）=================
+st.set_page_config(page_title="财务云进销存", page_icon="☁", layout="wide", initial_sidebar_state="expanded")
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
@@ -394,7 +394,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ================= 登录校验（迷你云风格登录页）=================
+# ================= 登录校验（财务云登录页）=================
 def _get_login_credentials():
     try:
         u = st.secrets.get("LOGIN_USERNAME", "").strip()
@@ -408,7 +408,7 @@ if not st.session_state.get("logged_in", False):
     col_left, col_right = st.columns([1, 1])
     with col_left:
         st.markdown('<div class="miniyun-login-left">', unsafe_allow_html=True)
-        st.markdown("### 迷你云 · 进销存")
+        st.markdown("### 财务云 · 进销存")
         st.markdown('<p class="miniyun-login-desc">完美适配中小微企业及迷你型企业的进销存软件</p>', unsafe_allow_html=True)
         st.markdown("多用户 · 多仓库 · 多门店  \n多规格 · 多批次 · 多单位  \n电脑端 · 平板端 · 手机端，多端数据同步", unsafe_allow_html=True)
         st.markdown("---")
@@ -436,15 +436,15 @@ if not st.session_state.get("logged_in", False):
                 st.rerun()
             else:
                 st.error("账号或密码错误。")
-    st.caption("© 迷你云进销存 版权所有")
+    st.caption("© 财务云进销存 版权所有")
     st.stop()
 
 
-# ================= 顶栏（迷你云风格）=================
+# ================= 顶栏（财务云风格）=================
 company = load_company()
 top1, top2, top3, top4, top5 = st.columns([2, 1, 1, 1, 1])
 with top1:
-    st.markdown(f"**{company.get('name', '迷你云')}**")
+    st.markdown(f"**{company.get('name', '财务云')}**")
 with top2:
     st.caption("用户：当前账户")
 with top3:
@@ -458,8 +458,8 @@ with top5:
         st.rerun()
 st.markdown("---")
 
-# ================= 侧边栏（迷你云：进货/销售/库存/财务/报表/设置）=================
-st.sidebar.markdown("### ☁ 迷你云")
+# ================= 侧边栏（财务云：进货/销售/库存/财务/报表/设置）=================
+st.sidebar.markdown("### ☁ 财务云")
 st.sidebar.markdown("---")
 main_nav = st.sidebar.radio(
     "主导航",
@@ -497,7 +497,7 @@ elif page == "销售-客户账单":
     page = "👤 客户账单"
 
 st.sidebar.markdown("---")
-st.sidebar.caption("© 迷你云 版权所有")
+st.sidebar.caption("© 财务云 版权所有")
 
 # ================= 数据加载 =================
 transactions = load_transactions()
